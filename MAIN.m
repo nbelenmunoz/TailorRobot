@@ -8,7 +8,7 @@ if simulo==1
     addr=[1,1,1,1]; %non genero address ma vado avanti nei blocchi di programma
 end
 %Metto 0 o 1 se non uso/uso il dispositivo
-robot1=1; robot2=0; estrusore=0; plc=0;
+robot1=1; robot2=0; estrusore=1; plc=0;
 %per modificare i loop e tenerli corretti nel teaching ai soli robot
 toolvar=estrusore+plc;
 %Per sapere il dispositivo i-esimo che numero è effettuo una cumsum di 1 
@@ -23,7 +23,7 @@ if simulo==0
     %address e port di 8CRL,FRB,ESTRUSORE,PLC
     addr=[]; port=[];
     if robot1==1 %8CRL (GRANDE) e 5ASD (assista)
-        addr=[addr,"192.168.0.22"];
+        addr=[addr,"127.0.0.1"];%% addr=[addr,"192.168.0.22"];
         port=[port,10008];
     end
     if robot2==1 %FRB (PICCOLO)
@@ -54,11 +54,11 @@ end
 %% GENERATE HERE THE POINTS MATRIX
 % X Y Z A B C Vrobot Varduino(200-1000) Tdelay(delay time the robot waits before moving to the next point)
 M = [
-    0.000,   250.000, 300.000,  180.000, 0.000, 0.000, 6, 0, 1;  % P1
-    80.000,  210.000, 215.000,  180.000, 0.000, 0.000, 7,   0, 1;  % P2
-    80.000,  350.000, 215.000,  180.000, 0.000, 0.000, 7, 0, 1;  % P3
-   -80.000,  350.000, 215.000,  180.000, 0.000, 0.000, 7, 0, 1;  % P4
-   -80.000,  210.000, 215.000, -180.000, 0.000, 0.000, 7, 0, 1;  % P5
+    0.000,   250.000, 300.000,  180.000, 0.000, 0.000, 20, 200, 0, 2;  % P1
+    80.000,  210.000, 215.000,  180.000, 0.000, 0.000, 20, 300, 0, 3;  % P2
+    80.000,  350.000, 215.000,  180.000, 0.000, 0.000, 20, 400, 0, 2;  % P3
+   -80.000,  350.000, 215.000,  180.000, 0.000, 0.000, 20, 200, 0, 5;  % P4
+   -80.000,  210.000, 215.000, -180.000, 0.000, 0.000, 20, 500, 0, 3;  % P5
 ];
 
 
@@ -135,13 +135,14 @@ if toolvec(end)-toolvar>0 %Se i robot esistono
         writeline(t(i),num2str(nbuff)); %scrivo nbuffer
     end
     %teach P1-Pk to the robots
+    pause(1);
     for i=1:toolvec(end)-toolvar
         for k=1:nbuff
             str="P-fatto";
             %data=TEACH(t(i),PPstr(k,i),num2str(vel(k,i)),str);
-            write(t,PPstr(k,i));
+            write(t(i),PPstr(k,i));
             pause(0.5);
-            write(t,num2str(vel(k,i)))
+            write(t(i),num2str(vel(k,i)))
             pause(1);
         end
     end
@@ -207,6 +208,7 @@ for k=nbuff+1:length(PPnum(:,1,1))-1
             data(k-nbuff+1,i)=CONTROL(t(i),str);
         end
         pause(delaytime(k-nbuff+1));
+        writeline(t(i),num2str(1));
     end
 end
 for k=2:nbuff
