@@ -23,7 +23,8 @@ if simulo==0
     %address e port di 8CRL,FRB,ESTRUSORE,PLC
     addr=[]; port=[];
     if robot1==1 %8CRL (GRANDE) e 5ASD (assista)
-        addr=[addr,"127.0.0.1"];%% addr=[addr,"192.168.0.22"];
+        %addr=[addr,"127.0.0.1"];
+        addr=[addr,"192.168.0.22"];
         port=[port,10008];
     end
     if robot2==1 %FRB (PICCOLO)
@@ -80,9 +81,9 @@ PPnum=round(PPnum,2);vel=round(vel,approx);delaytime=round(delaytime,2);
 for i=1:length(PPnum(:,1))
     for k=1:toolvec(end)-toolvar
         if k==1
-            flag="(7,0)"; %flag robot 1
+            flag="(6,0)"; %flag robot 1
         elseif k==2
-            flag="(6,0)"; %flag robot 2
+            flag="(7,0)"; %flag robot 2
         end
         PPstr(i,k)=genP(PPnum(i,:,k),flag); %stringa punti robot
     end
@@ -247,6 +248,3 @@ end
 %% Salvo i dati in raw format 
 rawdata=data;
 save("rawdata.mat","rawdata");
-
-
-
