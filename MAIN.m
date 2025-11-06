@@ -68,7 +68,7 @@ Points=M;
 %% PUNTI,VEL,tempi
 clc;
 %Scelgo numero punti buffer
-nbuff=2;
+nbuff=1;
 %load Points.mat;
 PPnum=Points(:,1:6);
 vel=Points(:,7:7+toolvec(end)-toolvar); vel(1,:)=50; %correzione vel avvicinamento a P1
