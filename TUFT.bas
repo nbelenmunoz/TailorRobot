@@ -1,0 +1,72 @@
+'Settaggio velocità
+Servo On
+Ovrd 50
+Accel 50,50
+Spd 50
+'Cnt 1,100,100
+Cnt 1
+'Cnt 0
+''NUMERO PUNTI TRAIETTORIA, loop e comunicazione (si aggiorna lui)
+Def Inte np,nbuff,M1,M2,M3
+''Position and Speed Buff, must be >= np set on MATLAB
+Dim PP(10)
+Dim MVEL(10)
+''HOME
+PHome=(+250.00,+0.00,+500.00,-180.00,+0.00,+0.00)(6,0)
+Mvs PHome
+Ovrd 50
+'' OPEN MATLAB COMUNICATION
+*rpt
+Open "COM7:" As #7
+If M_Open(7) <> 1 Then *rpt
+Dly 0.1
+'Ricevo numero punti e primi punti
+Input #7,np%
+Input #7,nbuff%
+For M1%=1 To nbuff% Step 1
+    Input #7,PP(M1%)
+    Input #7,MVEL(M1%)
+    'Print #7,"P",M1%,"fatto"
+Next M1%
+'Aspetto OK e mi muovo al primo punto
+Input #7,M2%
+If M2%=0 Then
+    Spd MVEL(1)
+    Mvs PP(1)
+EndIf
+Print #7,"PRONTO"
+Input #7,M2%
+Print #7,C_Time,P_Fbc,M_RSpd
+'Inizio PROCESSO
+If M2%=1 Then
+    For M1%=2 To np% Step 1
+        If M1%<=np%-nbuff% Then
+            Input #7,PP(M2%)
+            Input #7,MVEL(M2%)
+        EndIf
+        If M2%=nbuff% Then
+            M2%=1
+        Else
+            M2%=M2%+1
+        EndIf
+        If np%-nbuff%<=2 And M1%=np% Then
+            M2%=nbuff%
+        EndIf
+        Spd MVEL(M2%)
+        Mov PP(M2%)
+        Print #7,C_Time,P_Fbc,M_RSpd
+        Input #7,M3%
+    Next M1%
+EndIf
+'Torno in home
+Input #7,M2%
+If M2%=1 Then
+    Print #7,"PARTO"
+    Dly 1
+    Spd 40
+    Mvs PHome
+EndIf
+Close #7
+Dly 0.5
+Servo Off
+Hlt
