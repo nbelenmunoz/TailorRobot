@@ -9,11 +9,11 @@ if simulo==1
     addr=[1,1]; % Only robot1 and extruder addresses
 end
 %Metto 0 o 1 se non uso/uso il dispositivo
-robot1=1; estrusore=0; % Removed robot2 and plc
+robot1=1; estrusore=0; % Enable extruder
 %per modificare i loop e tenerli corretti nel teaching ai soli robot
-toolvar=estrusore; % Removed plc
+toolvar=estrusore;
 %Per sapere il dispositivo i-esimo che numero è effettuo una cumsum di 1
-toolvec=robot1; % Only robot1
+toolvec=robot1;
 if estrusore==1
     toolvec=[toolvec,toolvec(end)+estrusore]; % Add extruder if enabled
 end
@@ -48,16 +48,25 @@ if simulo==0
     end
 end
 
-%% GENERATE HERE THE POINTS MATRIX
-% X Y Z A B C Vrobot Varduino(200-1000) Tdelay(delay time the robot waits before moving to the next point)
-%X Y Z A B C EXTRUDER
+    %% GENERATE HERE THE POINTS MATRIX
+% X Y Z A B C Vrobot ExtruderActivation(0=no, 1=yes) Tdelay(delay time before moving to next point)
+
 M = [
-    315.000,  -10.000, 470.000, -180.000, 0.000, 0.000, 10, 0,     1; % P1S
-    315.000,  -10.000, 415.000, -180.000, 0.000, 0.000, 20, 0,     2;
-    315.000,  -10.000, 415.000, -180.000, 0.000, 0.000, 30, 40,    2;% P1
-    315.000,   60.000, 415.000, -180.000, 0.000, 0.000, 40, 40,    2; % P2
-    315.000,   60.000, 470.000, -180.000, 0.000, 0.000, 50, 0,     0;
-    315.000,   60.000, 470.000, -180.000, 0.000, 0.000, 60, 0,     0;% P2S
+    300.000,  -20.000, 490.000, -180.000, 0.000, 0.000, 100, 0, 1;
+    300.000,  -20.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1;
+    300.000,    0.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1; 
+    300.000,   20.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1;
+    300.000,   40.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1;
+    300.000,   60.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1; 
+    300.000,   60.000, 490.000, -180.000, 0.000, -90.000, 100, 0, 1;
+    310.000,   60.000, 490.000, -180.000, 0.000, -90.000, 100, 0, 1;
+    310.000,   60.000, 490.000, -180.000, 0.000, -90.000, 100, 1, 1;
+    310.000,   60.000, 490.000, -180.000, 0.000, -180.000, 100, 0, 1;
+    310.000,   40.000, 490.000, -180.000, 0.000, -180.000, 100, 1, 1;
+    310.000,   20.000, 490.000, -180.000, 0.000, -180.000, 100, 1, 1;
+    310.000,   0.000, 490.000,  -180.000, 0.000, -180.000, 100, 1, 1;
+    310.000,  -20.000, 490.000, -180.000, 0.000, -180.000, 100, 1, 1;
+
 ];
 
 %Save this matrix as "Points"
@@ -69,10 +78,9 @@ clc;
 nbuff=1;
 %load Points.mat;
 PPnum=Points(:,1:6);
-vel=Points(:,7:7); % Only robot1 velocity
+vel=Points(:,7); % Only robot1 velocity
 vel(1,:)=50; %correzione vel avvicinamento a P1
-toolvel=Points(:,end-1:end-1); % Only extruder velocity
-toolvel(1,:)=0;%correzione tool vel avvicinamento a P1
+extrudeFlag=Points(:,8); % Extruder activation flag (0=no, 1=yes)
 delaytime=Points(:,end);
 np=length(PPnum(:,1));%numero finale di punti
 
@@ -88,24 +96,18 @@ for i=1:length(PPnum(:,1))
     end
 end
 
-if estrusore==1
-    extrstr=[];
-    for i=1:length(PPnum(:,1,1))
-        extrstr=[extrstr;strcat("G",num2str(toolvel(i,1)),"n")];
-    end
-end
+%% EXTRUDER PARAMETERS - FIXED MOVEMENT
+% These parameters define the fixed 4-revolution movement
+G_value = 50;          % Command: "G200n"
+Nrev_axis = 4;          % Number of revolutions
+k_axis = 0.0096;        % Constant for time calculation
+Trev_axis = G_value * k_axis;         % Time for one revolution
+total_extrude_time = Nrev_axis * Trev_axis;   % Total time for 4 revolutions
+
+fprintf("Extruder fixed movement: %.2f rev at G%dn -> %.3f s\n", ...
+        Nrev_axis, G_value, total_extrude_time);
 
 %% PREPARAZIONE tool
-clc;
-omega = (pi/4);
-extrvel=(10^6)/(4254.77*omega);
-if estrusore==1
-    temperatura=0;%gradi centigradi
-    tempospurgo=2*pi/omega;%secondi, con -1000 uso 6.3 sec
-    gspurgo=extrvel;%velocità spurgo
-    data=EXTRSTART(t(toolvec(2)),temperatura,tempospurgo,gspurgo); %Activacion motor
-end
-
 %Suggerimenti
 if robot1>0 %Se il robot esiste
     fprintf("Be sure that PP and MVEL on Mitsubishi are at least long as nbuff(%i) \n",nbuff);
@@ -123,7 +125,6 @@ if robot1>0 %Se il robot esiste
     pause(1);
     for k=1:nbuff
         str="P-fatto";
-        %data=TEACH(t(1),PPstr(k,1),num2str(vel(k,1)),str);
         write(t(1),PPstr(k,1));
         pause(0.5);
         write(t(1),num2str(vel(k,1)))
@@ -139,66 +140,85 @@ end
 
 %% PROCESSO
 k=1;
-data=strings(length(PPnum(:,1,1)),1); % Only for robot1
-tempovec=zeros(length(PPnum(:,1,1)),length(addr));
+data = strings(length(PPnum(:,1,1)),1);
+tempovec = zeros(length(PPnum(:,1,1)),length(addr));
 
-if estrusore==1 %Parte estrusore
-    write(t(toolvec(2)),extrstr(2,:));
-    tempovec(k,toolvec(2))= seconds(duration(string(datetime('now','Format','HH:mm:ss.SS'))));
-end
-
-%CONTROLLO MOVIMENTO
+% CONTROLLO MOVIMENTO
 if robot1>0 %Se il robot esiste
     pause(delaytime(1));
-    writeline(t(1),num2str(1));
-    data(1,1)=CONTROL(t(1),str);
-    tempovec(1,1)= seconds(duration(string(datetime('now','Format','HH:mm:ss.SS'))));
+
+    startCmd = num2str(1);
+    fprintf('TX robot1 (START): %s\n', startCmd);
+    writeline(t(1), startCmd);
+
+    data(1,1) = CONTROL(t(1),str);
+    tempovec(1,1) = seconds(duration(string(datetime('now','Format','HH:mm:ss.SS'))));
     fprintf("P-%i \n",1);
 end
 
-for k=nbuff+1:length(PPnum(:,1,1))-1
+for k = nbuff+1 : length(PPnum(:,1,1)) - 1
     if robot1>0 %Aggiorno ROBOT
-        writeline(t(1),PPstr(k,1));
-        writeline(t(1),num2str(vel(k,1)));
+        % Posizione
+        posCmd = PPstr(k,1);
+        fprintf('k=%d | TX robot1 (PP): %s\n', k, char(posCmd));
+        writeline(t(1), posCmd);
+
+        % Velocità
+        velCmd = num2str(vel(k,1));
+        fprintf('k=%d | TX robot1 (VEL): %s\n', k, velCmd);
+        writeline(t(1), velCmd);
     end
     
     if robot1>0 %Ricevo avvenuto arrivo a destinazione del robot
-        data(k-nbuff+1,1)=CONTROL(t(1),str);
-        tempovec(k-nbuff+1,1)= seconds(duration(string(datetime('now','Format','HH:mm:ss.SS'))));
+        data(k-nbuff+1,1) = CONTROL(t(1),str);
+        tempovec(k-nbuff+1,1) = seconds(duration(string(datetime('now','Format','HH:mm:ss.SS'))));
     end
     
-    fprintf("P-%i \n",k-nbuff+1);
+    fprintf("P-%i \n", k-nbuff+1);
     
-    if estrusore==1 %Aggiorno velocità estrusore
-        write(t(toolvec(2)),extrstr(k-nbuff+1,:));
-        tempovec(k-nbuff+1,toolvec(2))= seconds(duration(string(datetime('now','Format','HH:mm:ss.SS'))));
+    % EXTRUDER CONTROL - FIXED 4-REVOLUTION MOVEMENT
+    if estrusore==1 && extrudeFlag(k) == 1
+        fprintf('Activating extruder at point P-%i for fixed 4 revolutions (%.3f seconds)\n', ...
+                k-nbuff+1, total_extrude_time);
+        
+        % Start extruder with fixed G200 command
+        extrStartCmd = sprintf("G%dn", G_value);
+        fprintf('TX estrusore START [%d]: %s\n', toolvec(2), char(extrStartCmd));
+        write(t(toolvec(2)), extrStartCmd);
+        tempovec(k-nbuff+1,toolvec(2)) = seconds(duration(string(datetime('now','Format','HH:mm:ss.SS'))));
+        
+        % Wait for the fixed 4-revolution time
+        fprintf('Waiting %.3f seconds for %d revolutions...\n', total_extrude_time, Nrev_axis);
+        pause(total_extrude_time);
+        
+        % Stop extruder
+        extrStopCmd = "G0n";
+        fprintf('TX estrusore STOP [%d]: %s\n', toolvec(2), char(extrStopCmd));
+        write(t(toolvec(2)), extrStopCmd);
+        
+        fprintf('Extrusion completed at point P-%i\n', k-nbuff+1);
     end
     
     if robot1>0 %Se il robot esiste
-        if k==length(PPnum(:,1,1))
-            data(k-nbuff+1,1)=CONTROL(t(1),str);
+        if k == length(PPnum(:,1,1))
+            data(k-nbuff+1,1) = CONTROL(t(1),str);
         end
         pause(delaytime(k-nbuff+1));
-        writeline(t(1),num2str(1))
+
+        contCmd = num2str(1);
+        fprintf('k=%d | TX robot1 (CONT): %s\n', k, contCmd);
+        writeline(t(1), contCmd);
     end
 end
 
-for k=2:nbuff
-    if estrusore==1 %Aggiorno velocità estrusore
-        write(t(toolvec(2)),extrstr(length(PPnum(:,1,1))-nbuff+k,:));
-        tempovec(length(PPnum(:,1,1))-nbuff+k,toolvec(2))= seconds(duration(string(datetime('now','Format','HH:mm:ss.SS'))));
-    end
-    
-    data(length(PPnum(:,1,1))-nbuff+k,1)=CONTROL(t(1),str);
-    fprintf("P-%i \n",length(PPnum(:,1,1))-nbuff+k);
-    pause(delaytime(length(PPnum(:,1,1))-nbuff+k));
-end
-
-%%FINE DEL PROCESSO
+%% FINE DEL PROCESSO
 if estrusore==1 %fermo estrusore
-    write(t(toolvec(2)),"G0n");
+    stopCmd = "G0n";
+    fprintf('TX estrusore stop [%d]: %s\n', toolvec(2), char(stopCmd));
+    write(t(toolvec(2)), stopCmd);
     pause(0.02);
-    write(t(toolvec(2)),"G0n");%lo ripeto per sicurezza
+    fprintf('TX estrusore stop (repeat) [%d]: %s\n', toolvec(2), char(stopCmd));
+    write(t(toolvec(2)), stopCmd); % lo ripeto per sicurezza
 end
 fprintf("PROCESSO TERMINATO \n");
 
