@@ -5,11 +5,11 @@ clc;
 %% DECIDO QUALI TOOL USARE
 %Simulation or online
 simulo=0;
-if simulo==1
+if simulo==1    
     addr=[1,1]; % Only robot1 and extruder addresses
 end
 %Metto 0 o 1 se non uso/uso il dispositivo
-robot1=1; estrusore=0; % Enable extruder
+robot1=1; estrusore=1; % Enable extruder
 %per modificare i loop e tenerli corretti nel teaching ai soli robot
 toolvar=estrusore;
 %Per sapere il dispositivo i-esimo che numero è effettuo una cumsum di 1
@@ -48,29 +48,64 @@ if simulo==0
     end
 end
 
-    %% GENERATE HERE THE POINTS MATRIX
-% X Y Z A B C Vrobot ExtruderActivation(0=no, 1=yes) Tdelay(delay time before moving to next point)
+%     %% GENERATE HERE THE POINTS MATRIX
+% % X Y Z A B C Vrobot ExtruderActivation(0=no, 1=yes) Tdelay(delay time
+% % before moving to next point)
+% 
+% M = [
+%     350.000,  0.000, 450.000, -180.000, 0.000, 90.000, 500, 0, 1; %primer punto
+%     350.000,  0.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     340.000,  0.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     330.000,  0.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     320.000,  0.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch 
+%     310.000,  0.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     300.000,  0.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     300.000,  0.000, 450.000, -180.000, 0.000, 0.000, 100,  0, 1; %giro
+%     300.000,  10.000, 450.000, -180.000, 0.000, 0.000, 100, 1, 1; %stitch y avance
+%     300.000,  0.000, 450.000, -180.000, 0.000, -90.000, 100,  0, 1; %giro
+%     310.000,  10.000, 450.000, -180.000, 0.000,-90.000, 100, 1, 1; %stitch
+%     320.000,  10.000, 450.000, -180.000, 0.000,-90.000, 100, 1, 1; %stitch
+%     330.000,  10.000, 450.000, -180.000, 0.000,-90.000, 100, 1, 1; %stitch
+%     340.000,  10.000, 450.000, -180.000, 0.000,-90.000, 100, 1, 1; %stitch
+%     350.000,  10.000, 450.000, -180.000, 0.000,-90.000, 100, 1, 1; %stitch
+%     350.000,  10.000, 450.000, -180.000, 0.000,  0.000, 100, 0, 1; %giro
+%     350.000,  20.000, 450.000, -180.000, 0.000,  0.000, 100, 1, 1; %stitch y avance
+%     350.000,  20.000, 450.000, -180.000, 0.000, 90.000, 100, 0, 1; %giro
+%     340.000,  20.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     330.000,  20.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     320.000,  20.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     310.000,  20.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     300.000,  20.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+%     300.000,  20.000, 450.000, -180.000, 0.000, 90.000, 100, 1, 1; %stitch
+% 
+% ];
 
-M = [
-    300.000,  -20.000, 490.000, -180.000, 0.000, 0.000, 100, 0, 1;
-    300.000,  -20.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1;
-    300.000,    0.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1; 
-    300.000,   20.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1;
-    300.000,   40.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1;
-    300.000,   60.000, 490.000, -180.000, 0.000, 0.000, 100, 1, 1; 
-    300.000,   60.000, 490.000, -180.000, 0.000, -90.000, 100, 0, 1;
-    310.000,   60.000, 490.000, -180.000, 0.000, -90.000, 100, 0, 1;
-    310.000,   60.000, 490.000, -180.000, 0.000, -90.000, 100, 1, 1;
-    310.000,   60.000, 490.000, -180.000, 0.000, -180.000, 100, 0, 1;
-    310.000,   40.000, 490.000, -180.000, 0.000, -180.000, 100, 1, 1;
-    310.000,   20.000, 490.000, -180.000, 0.000, -180.000, 100, 1, 1;
-    310.000,   0.000, 490.000,  -180.000, 0.000, -180.000, 100, 1, 1;
-    310.000,  -20.000, 490.000, -180.000, 0.000, -180.000, 100, 1, 1;
+%% GENERATE HERE THE POINTS MATRIX (SNAKE PATTERN)
 
-];
+stitch = 10;        % mm
+Ztest  = 440;       % choose whatever height you want for this test
+
+M = snakePatternRect(200, 350, -20, 20, stitch, Ztest); %snakePatternRect(x_min, x_max, y_min, y_max, stitch, Z)
+
+% %% GENERATE POINTS FOR A LINE
+% stitch = 10;          % mm
+% Ztest  = 500;         % mm
+% 
+% % Linea en el espacio del molde, es que tan largo y en que parte estará la
+% % linea
+% M = straightPatternLine('y', -60, 60, 300, stitch, Ztest);
+
+
+% %% Multipattern planning
+% stitch = 20;
+% Ztest  = 500;
+% 
+% M = multiLinePatternRect(250, 350, -60, 60, stitch, Ztest, 'y');
+% 
 
 %Save this matrix as "Points"
-Points=M;
+Points= M;
+plotPath(Points, 0);
 
 %% PUNTI,VEL,tempi
 clc;
@@ -98,8 +133,8 @@ end
 
 %% EXTRUDER PARAMETERS - FIXED MOVEMENT
 % These parameters define the fixed 4-revolution movement
-G_value = 50;          % Command: "G200n"
-Nrev_axis = 4;          % Number of revolutions
+G_value = 100;          % Command: "G200n"
+Nrev_axis = 0.42;          % Number of revolutions
 k_axis = 0.0096;        % Constant for time calculation
 Trev_axis = G_value * k_axis;         % Time for one revolution
 total_extrude_time = Nrev_axis * Trev_axis;   % Total time for 4 revolutions
@@ -233,3 +268,4 @@ end
 %% Salvo i dati in raw format
 rawdata=data;
 save("rawdata.mat","rawdata");
+
