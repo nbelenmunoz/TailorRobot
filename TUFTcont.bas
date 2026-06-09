@@ -3,17 +3,14 @@ Servo On
 Ovrd 100
 Accel 100,100
 Spd 30
-'Cnt 1,100,100
 Cnt 0
-
-'Cnt 0
 ''NUMERO PUNTI TRAIETTORIA, loop e comunicazione (si aggiorna lui)
 Def Inte np,nbuff,M1,M2,M3
 ''Position and Speed Buff, must be >= np set on MATLAB
 Dim PP(20)
 Dim MVEL(20)
 ''HOME
-PHome=(+230.00,+15.00,+260.00,-180.00,+0.00,-90.00)(6,0)
+PHome=(+230.00,+80.00,+290.00,-180.00,+0.00,-90.00)(6,0)
 Mvs PHome
 Ovrd 100
 '' OPEN MATLAB COMUNICATION
@@ -27,13 +24,12 @@ Input #7,nbuff%
 For M1%=1 To nbuff% Step 1
     Input #7,PP(M1%)
     Input #7,MVEL(M1%)
-    'Print #7,"P",M1%,"fatto"
 Next M1%
 'Aspetto OK e mi muovo al primo punto
 Input #7,M2%
 If M2%=0 Then
     Spd MVEL(1)
-    Mvs PP(1)
+    Mvs PP(1)           ' Movimiento lineal
 EndIf
 Print #7,"PRONTO"
 Input #7,M2%
@@ -53,18 +49,18 @@ If M2%=1 Then
         If np%-nbuff%<=2 And M1%=np% Then
             M2%=nbuff%
         EndIf
-        Spd MVEL(M2%)
-        Mov PP(M2%)
+        Spd MVEL(M2%)     ' Velocidad lineal (mm/s)
+        Mvs PP(M2%)       ' Movimiento lineal
         Print #7,C_Time,P_Fbc,M_RSpd
         Input #7,M3%
     Next M1%
 EndIf
-'Torno in home
+'Torno in home (velocidad aumentada a 100 mm/s)
 Input #7,M2%
 If M2%=1 Then
     Print #7,"PARTO"
     Dly 1
-    Spd 40
+    Spd 100
     Mvs PHome
 EndIf
 Close #7
