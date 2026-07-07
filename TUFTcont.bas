@@ -4,13 +4,14 @@ Ovrd 100
 Accel 100,100
 Spd 30
 Cnt 0
+Tool 1
 ''NUMERO PUNTI TRAIETTORIA, loop e comunicazione (si aggiorna lui)
 Def Inte np,nbuff,M1,M2,M3
 ''Position and Speed Buff, must be >= np set on MATLAB
 Dim PP(20)
 Dim MVEL(20)
 ''HOME
-PHome=(+230.00,+80.00,+290.00,-180.00,+0.00,-90.00)(6,0)
+PHome=(+230.00,+80.00,+110.00,-180.00,+0.00,-90.00)(6,0)
 Mvs PHome
 Ovrd 100
 '' OPEN MATLAB COMUNICATION
@@ -60,7 +61,7 @@ Input #7,M2%
 If M2%=1 Then
     Print #7,"PARTO"
     Dly 1
-    Spd 100
+    Spd 50
     Mvs PHome
 EndIf
 Close #7
