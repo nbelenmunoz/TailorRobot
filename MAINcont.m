@@ -1,5 +1,6 @@
-
-close all; clear; clc;
+close all; 
+clear; 
+clc;    
 
 %% SELECT WHICH TOOLS TO USE
 simulo = 0;
@@ -18,7 +19,8 @@ clc;
 if simulo == 0
     tout = 20; conntout = 30;
     if robot1 == 1
-        ip_robot = "192.168.0.22";
+        ip_robot = "192.168.0.22";  
+        %ip_robot = "127.0.0.1";
         port_robot = 10008;
         t_robot = ADDRESS(ip_robot, port_robot, tout, conntout);
         configureTerminator(t_robot, "CR");
@@ -45,25 +47,50 @@ if simulo == 0
 end
 
 %% POINTS MATRIX (robot speed = 5 mm/s, stitch length = 10 mm)
+% M = X, Y, Z, A, B, C, Robot speed, Motor
+veltest = 10;    % Speed mm/s
+velpos = 2;  % mm/s
+x1 = 310.00;
+x2 = 370.00;
+L1 = 25.00;
+L2 = 15.00;
+L3 = 5.00;
+z1 = 90.00;
+z2 = 95.00;
+
+
 M = [
-    % PRIMERA LÍNEA (Y = 15, de X=250 a X=340)
-    250.00,  40.00,  279.00,  -180.00,  0.00,  -90.00,  5,  0,  1;   % P1: approach (baja sin coser)
-    250.00,  40.00,  279.00,  -180.00,  0.00,  -90.00,  5,  1,  0;   % P2: inicio coser -> coserá hasta P3
-    320.00,  40.00,  279.00,  -180.00,  0.00,  -90.00,  5,  0,  0;   % P3: fin coser (motor se para)
+    % First Line (Y = 15, de X=250 a X=340)
+    x1,  L1,  z1,  -180.00,  0.00,  270.00,  veltest,    0,  1;   % P1: approach
+    x1,  L1,  z1,  -180.00,  0.00,  270.00,  veltest,    1,  0;   % P2: inicio coser
+    x2,  L1,  z1,  -180.00,  0.00,  270.00,  veltest,    0,  0;   % P3: fin coser
     
-    % Subida y traslado a la segunda línea (Y = 0)
-    320.00,  40.00,  300.00,  -180.00,  0.00,  -90.00,  5,  0,  1;   % P4: sube aguja (eje Z)
-    320.00,   30.00,  300.00,  -180.00,  0.00,  90.00,  10, 0,  0;   % P5: traslación rápida en Y (cambia orientación opcional)
-    320.00,   30.00,  279.00,  -180.00,  0.00,  90.00,  5,  0,  1;   % P6: baja aguja al inicio de segunda línea
+    % Up and move to the next line (Y = 0)
+    x2,  L2,  z2,  -180.00,  0.00,  270.00,  veltest,    0,  1;   % P4: sube aguja
+    x2,  L2,  z2,  -180.00,  0.00,  90.00,   velpos,  0,  0;   % P5: traslación rápida
+    x2,  L2,  z1,  -180.00,  0.00,  90.00,   veltest,    0,  1;   % P6: baja aguja
     
-    % SEGUNDA LÍNEA (Y = 0, de X=340 a X=250, cosiendo en sentido inverso)
-    320.00,   30.00,  279.00,  -180.00,  0.00,  90.00,  5,  1,  0;   % P7: inicio coser (hacia P8)
-    250.00,   30.00,  279.00,  -180.00,  0.00,  90.00,  5,  0,  0;   % P8: fin coser (motor para)
+    % Second line (Y = 0, de X=340 a X=250)
+    x2,  L2,  z1,  -180.00,  0.00,  90.00,   veltest,    1,  0;   % P7: inicio coser
+    x1,  L2,  z1,  -180.00,  0.00,  90.00,   veltest,    0,  0;   % P8: fin coser
+    x1,  L2,  z2,  -180.00,  0.00,  90.00,  veltest,     0,  1;   % P4: sube aguja
+    x1,  L3,  z2,  -180.00,  0.00,  91.00,   velpos,  0,  0;
+    x1,  L3,  z2,  -180.00,  0.00,  270.00,  velpos,  0,  0;   % P9: Traslacion rapida
+    x1,  L3,  z1,  -180.00,  0.00,  270.00,   veltest,    0,  1;   % P10: baja aguja
+
+    %Third Line
+
+    x1,  L3,  z1,  -180.00,  0.00,  270.00,   veltest,    1,  0;   % P11: inicio coser
+    x2,  L3,  z1,  -180.00,  0.00,  270.00,   veltest,    0,  0;   % P12: fin coser
     
-    % Subida final
-    250.00,   30.00,  300.00,  -180.00,  0.00,  90.00,  5,  0,  1;   % P9: sube aguja y termina
+    % Final up
+    x2,  L3, z2,  -180.00,  0.00,  270.00,  veltest,    0,  1;   % P13: sube aguja
+   
+
 ];
-%plotPath(Points, 0);
+
+
+
 Points = M;
 
 
@@ -84,15 +111,18 @@ for i = 1:np
     flag = "(6,0)";
     PPstr(i,1) = genP(PPnum(i,:), flag);
 end
-
 %% SEWING PARAMETERS
-L_puntada = 10;
+L_stitch = 5   ; %TEST
+
 STEPS_PER_STITCH_REV = 600;
 MAX_SPS = 3000;
-MIN_SPS = 10;
+MIN_SPS = 200;
 RAMP_FRAC = 0.15;
 RAMP_DT = 0.05;
 RAMP_MAX_T = 0.30;
+
+
+
 
 %% PREPARE ARDUINO
 if estrusore && simulo == 0
@@ -110,10 +140,12 @@ if estrusore && simulo == 0
     fprintf('Ready.\n\n');
 end
 
+
+
 %% TEACH FIRST POINTS
 if robot1 && simulo == 0
     fprintf('Teaching robot (np=%d, nbuff=%d)...\n', np, nbuff);
-    writeline(t_robot, num2str(np));
+    writeline(t_robot, num2str(np+5));
     pause(0.2);
     writeline(t_robot, num2str(nbuff));
     pause(1.0);
@@ -144,16 +176,18 @@ end
 
 % Loop over points 2 to np-1
 for k = 2 : np-1
-    % --- Wait for arrival at current point k (already handled for k=2 above)
+    % Wait for arrival at current point k (already handled for k=2 above)
     if k > 2
         if robot1 && simulo == 0
             data(k) = CONTROL(t_robot, handshake);
             tempovec(k,1) = posixtime(datetime('now'));
         end
         fprintf("P-%d reached\n", k);
+        %input("Enter");
     end
     
     %  stitch start
+        %  stitch start
     if estrusore && extrudeFlag(k) == 1 && k < np
         % Calculate distance to next point
         p_curr = PPnum(k,1:3);
@@ -163,9 +197,7 @@ for k = 2 : np-1
         
         if dist > 0 && vel_robot > 0
             travel_time = dist / vel_robot;
-            % Si el robot avanza a 5 mm/s y quiero una puntada cada 10 mm, 
-            % necesito que la aguja haga medio ciclo por segundo, es decir 300 pasos/s
-            sps = (STEPS_PER_STITCH_REV / L_puntada) * vel_robot; 
+            sps = (STEPS_PER_STITCH_REV / L_stitch) * vel_robot; 
             sps = max(MIN_SPS, min(MAX_SPS, sps));
             
             t_ramp = min(travel_time * RAMP_FRAC, RAMP_MAX_T);
@@ -184,6 +216,10 @@ for k = 2 : np-1
                 writeline(t_robot, num2str(vel_prog(k+1)));
             end
             
+            % MODIFICADO: Reiniciar contador de pasos en Arduino antes de empezar a coser
+            writeline(t_arduino, 'Z');
+            pause(0.01);
+            
             % Send CONTINUE to robot (start moving to next point)
             writeline(t_robot, '1');
             pause(0.02);
@@ -194,8 +230,14 @@ for k = 2 : np-1
                 writeline(t_arduino, sprintf('S%.0f', sps));
                 pause(t_cruise);
             end
-            ramparMotor(t_arduino, sps, 0, t_ramp, RAMP_DT);
-            writeline(t_arduino, 'S0');
+            
+            ramparMotor(t_arduino, sps, MIN_SPS, t_ramp, RAMP_DT);
+            % Enviar comando F para que complete la puntada y pare automáticamente
+            writeline(t_arduino, 'F');
+            fprintf('  Finalizando puntada actual...\n');
+            % (Opcional) Leer confirmación del Arduino
+            % resp = readline(t_arduino);
+            % disp(resp);
             
             fprintf('  Sewing completed.\n');
             tempovec(k,2) = posixtime(datetime('now'));
@@ -217,7 +259,7 @@ for k = 2 : np-1
     end
 end
 
-    %% FINISH
+   %% FINISH
 if estrusore && simulo == 0
     writeline(t_arduino, 'S0');
     pause(0.05);
@@ -231,12 +273,13 @@ fprintf("PROCESS FINISHED\n");
 if robot1 && simulo == 0
     writeline(t_robot, '1');
     writeline(t_robot, '1');
-    pause(2);  % give time to move home
+    pause(2);  % give time to mov   e home
     fprintf("Robot returning home...\n");
 end
 
 rawdata = data;
 save("rawdata.mat", "rawdata");
+
 
 %% LOCAL FUNCTION
 function ramparMotor(t_arduino, v_start, v_end, t_ramp, dt)
