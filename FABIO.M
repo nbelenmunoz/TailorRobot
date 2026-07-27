@@ -121,7 +121,42 @@ RAMP_FRAC = 0.15;
 RAMP_DT = 0.05;
 RAMP_MAX_T = 0.3;
 
+%% PRE‑COMPUTE SEGMENT DATA (travel time, motor speed, ramps)
+% This moves the calculation outside the main loop.
+dist_vec = zeros(np-1,1);
+travel_time_vec = zeros(np-1,1);
+sps_vec = zeros(np-1,1);
+t_ramp_vec = zeros(np-1,1);
+t_cruise_vec = zeros(np-1,1);
 
+for i = 1:np-1
+    p_curr = PPnum(i,1:3);
+    p_next = PPnum(i+1,1:3);
+    dist = norm(p_next - p_curr);
+    vel_robot = vel_prog(i);
+    dist_vec(i) = dist;
+    if dist > 0 && vel_robot > 0
+        travel_time = dist / vel_robot;
+        sps = (STEPS_PER_STITCH_REV / L_stitch) * vel_robot;
+        sps = max(MIN_SPS, min(MAX_SPS, sps));
+        t_ramp = min(travel_time * RAMP_FRAC, RAMP_MAX_T);
+        t_cruise = travel_time - 2*t_ramp;
+        if t_cruise < 0
+            t_cruise = 0;
+            t_ramp = travel_time / 2;
+        end
+        travel_time_vec(i) = travel_time;
+        sps_vec(i) = sps;
+        t_ramp_vec(i) = t_ramp;
+        t_cruise_vec(i) = t_cruise;
+    else
+        % zero distance or velocity: no sewing
+        travel_time_vec(i) = 0;
+        sps_vec(i) = 0;
+        t_ramp_vec(i) = 0;
+        t_cruise_vec(i) = 0;
+    end
+end
 
 %%% PREPARE ARDUINO
 if estrusore && simulo == 0
@@ -178,57 +213,45 @@ for k = 1 : np-1
 
     % Sewing segment
     if estrusore && extrudeFlag(k) == 1 && k < np
-        % Calculate distance to next point
-        p_curr = PPnum(k,1:3);
-        p_next = PPnum(k+1,1:3);
-        dist = norm(p_next - p_curr);
-        
-        vel_robot = vel_prog(k+1);    % CHANGE
+        % Use precomputed values for this segment
+        dist = dist_vec(k);
+        travel_time = travel_time_vec(k);
+        sps = sps_vec(k);
+        t_ramp = t_ramp_vec(k);
+        t_cruise = t_cruise_vec(k);
 
-        if dist > 0 && vel_robot > 0
-            travel_time = dist / vel_robot;
-            sps = (STEPS_PER_STITCH_REV / L_stitch) * vel_robot;
-            sps = max(MIN_SPS, min(MAX_SPS, sps));
-            t_ramp = min(travel_time * RAMP_FRAC, RAMP_MAX_T);
-            t_cruise = travel_time - 2*t_ramp;
-            if t_cruise < 0
-                t_cruise = 0;
-                t_ramp = travel_time / 2;
-            end
+        fprintf('  Segment P%d→P%d: dist=%.1f mm, vel=%.1f mm/s, t=%.3f s, motor=%.0f pps\n', ...
+                k, k+1, dist, vel_prog(k), travel_time, sps);   % uses vel_prog(k) as per precompute
 
-            fprintf('  Segment P%d→P%d: dist=%.1f mm, vel=%.1f mm/s, t=%.3f s, motor=%.0f pps\n', ...
-                    k, k+1, dist, vel_robot, travel_time, sps);
+        % Reset Arduino step counter
+        writeline(t_arduino, 'Z');
 
-            % Reset Arduino step counter
-            writeline(t_arduino, 'Z');
+        % Start sewing motor ramp up
+        ramparMotor(t_arduino, 0, sps, t_ramp, RAMP_DT);
 
-            % Start sewing motor ramp up
-            ramparMotor(t_arduino, 0, sps, t_ramp, RAMP_DT);
+        % Send the NEXT point and speed to the robot (this is now the immediate target)
+        writeline(t_robot, PPstr(k+1,1));
+        writeline(t_robot, num2str(vel_prog(k+1)));
 
-            % Send the NEXT point and speed to the robot (this is now the immediate target)
-            writeline(t_robot, PPstr(k+1,1));
-            writeline(t_robot, num2str(vel_prog(k+1)));
-
-            % Maintain constant speed during cruise (if any)
-            if t_cruise > 0
-                writeline(t_arduino, sprintf('S%.0f', sps));
-                pause(t_cruise);
-            end
-
-            % Ramp motor down to zero
-            ramparMotor(t_arduino, sps, 0, t_ramp, RAMP_DT);
-
-            % Wait for robot to finish the movement (it will send "DONE")
-            temp = CONTROL(t_robot, handshake);
-
-            % Finish the current stitch and stop motor automatically
-            writeline(t_arduino, 'F');
-            fprintf('  Finishing actual stitch...\n');
-            fprintf('  Sewing completed.\n');
-            tempovec(k,2) = posixtime(datetime('now'));
-
-            % No need for a long extra pause here; the robot is already at the next point
+        % Maintain constant speed during cruise (if any)
+        if t_cruise > 0
+            writeline(t_arduino, sprintf('S%.0f', sps));
+            pause(t_cruise);
         end
+
+        % Ramp motor down to zero
+        ramparMotor(t_arduino, sps, 0, t_ramp, RAMP_DT);
+
+        % Wait for robot to finish the movement (it will send "DONE")
+        temp = CONTROL(t_robot, handshake);
+
+        % Finish the current stitch and stop motor automatically
+        writeline(t_arduino, 'F');
+        fprintf('  Finishing actual stitch...\n');
+        fprintf('  Sewing completed.\n');
+        tempovec(k,2) = posixtime(datetime('now'));
+
+        % No need for a long extra pause here; the robot is already at the next point
     else
         % No sewing on this segment: move to next point immediately
         if robot1 && simulo == 0
