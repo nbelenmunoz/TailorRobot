@@ -1,15 +1,18 @@
 close all; 
-clear all;
-clc;
+clear; 
+clc;    
+system('taskkill /F /IM ProvaMistu2.exe >nul 2>&1');   % cierra restos del realtime de corridas anteriores
+
 %% DECIDO QUALI TOOL USARE
 %Metto 0 o 1 se non uso/uso il dispositivo
 robots=1;motors=0;umotors=1;
 %IP
-IP_robot=["192.168.0.21",10008];
+IP_robot=["192.168.0.22",10008];
 IP_motor=[];%["192.168.0.6",1000;"192.168.0.11",1001];
 IP_umotor=["COM6", 9600];
 %Flag robot
-robot_flag="(7,0)";
+robot_flag="(6,0)";
+
 %% GENERAZIONE ADDRESS
 clc;
 %vettori delle connessioni
@@ -17,170 +20,221 @@ t_robot=[];t_motor=[];t_umotor=[];
 for i=1:length(robots)
     if robots(i)==1
         t_robot=[t_robot,ADDRESS(IP_robot(i,1),IP_robot(i,2))];
-        configureTerminator(t_robot(end),"CR"); %assista ha bisogno di CR specificato
+        configureTerminator(t_robot(end),"CR"); 
     end
 end
 for i=1:length(motors)
    if motors(i)==1
         t_motor=[t_motor,ADDRESS(IP_motor(i,1),IP_motor(i,2))];
-        %configureTerminator(t_motors(i),"CR");
     end
 end
 for i=1:length(umotors)
    if umotors(i)==1
        t_umotor=[t_umotor,serialport(IP_umotor(i,1),str2double(IP_umotor(i,2)))];
-       %configureTerminator(t_motors(i),"CR");
+       configureTerminator(t_umotor(end),"LF");
+       t_umotor(end).Timeout = 2;
+       pause(2);                      
+       flush(t_umotor(end));          
     end
 end
-% %% PROVO A ROTEARE MOTORE
-% if sum(motors)>0 || sum(umotors)>0
-%     %Test code angle offset command
-%     % writeline(t_umotors(1), "G360\n"); %360 gradi=3cm fibra lascata
-%     % risposta = readline(t_umotors(1));
-%     % disp(risposta);
-%     pause(3);
-%     writeline(t_umotors(1), "G720\n");
-%     risposta = readline(t_umotors(1));
-%     disp(risposta)
-% end
+
 %% IMPORT START POINTS FROM TXT FILES
 %Percorso dei file txt
-cartella_madre="C:\Users\CYBORG\Desktop\REALTIME_TASTIERA_FP\Mitsubishi-RT-main\Mitsubishi-RT-main\x64\Release\Traiettorie\FP\";
-nomi_txt="FPreal";
-cartella_mat=cartella_madre+"FPmat\"; nomi_matrici="FPmat";
-giunti=1;
-n_subtxt=1;%numero di tracce singole all'interno di una cartella (nella cartella vedo nome_1.txt,nome_2.txt etc.)
-np=n_subtxt*2;%numero finale di punti che è 2 volte i subtxt perchè ho il cut in mezzo
-%Calcello i txt temporanei di FPmat
-if isfolder(cartella_mat)
-    files_txt = dir(fullfile(cartella_mat, "*.txt"));
-    
-    for k = 1:length(files_txt)
-        delete(fullfile(cartella_mat, files_txt(k).name));
-    end
-else
-    mkdir(cartella_mat);
-end
-% Importo tutti i txt e salvo i punti iniziali,cut e finali dei TXT
-P_start=zeros(n_subtxt,7);P_cut=P_start;P_end=P_start;
-vel=10;sample_time=0.007;tratto_aftercut=40;%mm/s,s,mm
-cut_index=ceil(tratto_aftercut/(vel*sample_time));%vado a end-cut-index per scegliere il punto in cui salvare
+cartella_madre="C:\Users\nbele\OneDrive\Escritorio\REALTIME_TASTIERA_FP\Mitsubishi-RT-main\Mitsubishi-RT-main\x64\Release\Traiettorie\FP\FPmat\";
+nomi_txt="FPReal";
+speed_test = "_7_"; %Speed parameter 3, 5 and 7. Only for reference number. The txt should have the speed already consider
+cartella_mat=cartella_madre; nomi_matrici= nomi_txt+speed_test;
+giunti=0;       %1 -> joints in RT, 0 -> x,y,z
+n_subtxt=3;     %numero di tracce singole (nome_1.txt, nome_2.txt etc.)
+np=n_subtxt;    %una passata per linea, il txt non si divide
+
+P_start=zeros(n_subtxt,7);P_end=P_start;
+n_rows=zeros(n_subtxt,1);
+
 for i=1:n_subtxt
-    %txt_temp=table2array(readtable(cartella_madre+nomi_txt+"_"+num2str(i),'delimiter',' '));
-    opts = detectImportOptions(cartella_madre + nomi_txt + "_" + num2str(i));
-    T = readtable(cartella_madre + nomi_txt + "_" + num2str(i), opts);
+    fname = cartella_madre + nomi_txt + speed_test + num2str(i) + ".txt";
+    opts = detectImportOptions(fname);
+    T = readtable(fname, opts);
     txt_temp = table2array(T);
+    n_rows(i)=size(txt_temp,1);
     P_start(i,1:length(txt_temp(1,:)))=txt_temp(1,:);
-    P_cut(i,1:length(txt_temp(1,:)))=txt_temp(end-cut_index,:);
     P_end(i,1:length(txt_temp(1,:)))=txt_temp(end,:);
-    M1=txt_temp(1:end-cut_index,:); M2=txt_temp(end-cut_index:end,:);
-    writematrix(M1, cartella_mat+ nomi_matrici + "_" + num2str(i) +'_1.txt', 'Delimiter', ' ');
-    writematrix(M2, cartella_mat + nomi_matrici + "_" + num2str(i) +'_2.txt', 'Delimiter', ' ');
+    M1=txt_temp;
+    writematrix(M1, cartella_mat+ nomi_matrici + num2str(i) +'.txt', 'Delimiter', ' ');
 end
+
 clear txt_temp;%libero spazio
 
 %% CONVERTO NUMERI IN STRINGHE PER TEACH
-
-PPstr=strings(n_subtxt,3);
+PPstr=strings(n_subtxt,2);
 if giunti==1
     robot_flag="";
 end
 %CONVERTO A STRINGHE CORRETTE PER IL TEACHING
 for i=1:n_subtxt
-     PPstr(i,1)=genP(P_start(i,1:6),robot_flag); %stringa inizi robot
-     PPstr(i,2)=genP(P_cut(i,1:6),robot_flag); %stringa fini robot
-     PPstr(i,3)=genP(P_end(i,1:6),robot_flag); %stringa fini robot
+     PPstr(i,1)=genP(P_start(i,1:6),robot_flag); 
+     PPstr(i,2)=genP(P_end(i,1:6),robot_flag);  
 end
 clc;
+disp(PPstr(1,1));  
+
+%% PARAMETRI CUCITURA
+vel_mm_s    = str2double(erase(speed_test,"_"));  
+sample_time = 0.007;      
+L_stitch    = 10;         
+STEPS_REV   = 600;        
+MIN_SPS = 180; MAX_SPS = 1800;
+MAX_STEP = 300; DT = 0.05;
+t_delay = 0.5;            % CALIBRAR
+
+%% PRECALCOLO PER OGNI LINEA
+T_tot = zeros(n_subtxt,1); L_tot = T_tot; n_st = T_tot;
+sps_vec = T_tot; n_ramp_vec = T_tot; t_cruise = T_tot;
+for i = 1:n_subtxt
+    T_tot(i) = n_rows(i)*sample_time;
+    L_tot(i) = vel_mm_s*T_tot(i);
+    n_st(i)  = max(1, round(L_tot(i)/L_stitch));      % puntadas enteras
+    L_real   = L_tot(i)/n_st(i);
+    sps = STEPS_REV/L_real*vel_mm_s;
+    sps = max(MIN_SPS, min(MAX_SPS, sps));
+    n_ramp = ceil((sps-MIN_SPS)/MAX_STEP);
+    if 2*n_ramp*DT > T_tot(i)-t_delay                 
+        n_ramp = max(0, floor((T_tot(i)-t_delay)/(2*DT)));
+        sps = MIN_SPS + n_ramp*MAX_STEP;
+    end
+    sps_vec(i) = sps; n_ramp_vec(i) = n_ramp;
+    t_cruise(i) = max(0, T_tot(i) - t_delay - 2*n_ramp*DT);
+    fprintf('Linea %d: %d filas, T=%.2f s, L=%.1f mm, %d puntadas, %.0f sps, crucero %.2f s\n', ...
+        i, n_rows(i), T_tot(i), L_tot(i), n_st(i), sps, t_cruise(i));
+end
+
+%% Arduino Preparation
 disp("VAI NEL PROGRAMMA MITSU E AVVIALO");
-%% PROCESSO
-ang_feed=0;%numero di gradi che rotea il motore di feed aftercut, 1000 va bene
-pausa=[3,1,3];%array delle pause di processo per taglio etc.
-path="C:\Users\CYBORG\Desktop\REALTIME_TASTIERA_FP\Mitsubishi-RT-main\Mitsubishi-RT-main\x64\Release";
-pathconf = "C:\Users\CYBORG\Desktop\REALTIME_TASTIERA_FP\Mitsubishi-RT-main\Mitsubishi-RT-main\x64\Release\configs";
-confname = "FP1.txt";
-pos_j=num2str(giunti);%0 se usi xyz o 1 se usi giunti nel realtime
-tastiera="N";%se vuoi che attenda tastiera in realtime metti Y, altrimenti N
-sec_sottoprocessi="100";%quanti secondi vuoi che vada real prima di resettare j7
-msec_attesa="1000";%quanti ms aspettare dopo aver riaggiornato j7
-comandi=[confname,pos_j,tastiera,sec_sottoprocessi,msec_attesa];
-%Teach se uso giunti o xyz
-writeline(t_robot,pos_j); data=CONTROL(t_robot);disp(data);
-%Teach np to the robots
-writeline(t_robot,num2str(np)); data=CONTROL(t_robot);disp(data);
-%LOOP DI TEACH Pstart, REALTIME,TAGLIO,ALZO FEED
-clc;
-sub_n=1;
-for n=1:np
-    %Teach P_start e P_end to the robot
-    if mod(n, 2) == 1
-        data=TEACH_P(t_robot,PPstr(sub_n,1));disp(data);
-    else
-        data=TEACH_P(t_robot,PPstr(sub_n,2));disp(data);
-    end
-    %robots move to P1
-    data=CONTROL(t_robot);disp(data);
-    %REALTIME_IN
-    writeline(t_robot,num2str(1));
-    data=CONTROL(t_robot);disp(data);
-    %PREPARO FILE CONFIG
-    fullpath = fullfile(pathconf, confname);
-    fid = fopen(fullpath, 'w');
-    if fid == -1
-        error('Impossibile aprire o creare il file: %s', fullpath);
-    end
-    if mod(n, 2) == 1
-        txt=nomi_matrici+"_"+num2str(sub_n)+"_1.txt";% numero dispari
-    else
-        txt=nomi_matrici+"_"+num2str(sub_n)+"_2.txt";% numero pari
-        sub_n=sub_n+1;
-    end
-    fprintf(fid, '# IP  filename        cycle_time timeout\n');
-    temp=IP_robot(1)+' ./Traiettorie/FP/FPmat/'+txt+' 7100 7100';
-    fprintf(fid,"%s",temp);
-    fclose(fid);
-    %Creo cmd
-    cmd = sprintf('cd /d "%s" && ProvaMistu2.exe %s %s %s %s %s %s',path,confname,pos_j,tastiera,sec_sottoprocessi,msec_attesa, " ");
-    %HERE YOU CAN START THE ARDUINO
-    system(cmd);%HERE IT OPENS CMC AND START THE C++ CODE
-    %REALTIME_OUT
-    data=CONTROL(t_robot);disp(data);
-    %TAGLIO
-    if motors==1 || umotors==1
-        if mod(n, 2) == 1
-            writeline(t_umotor,strcat("1\n"));%numero dispari ->taglio
-        else
-            writeline(t_umotor,strcat("0\n"));%numero pari ->nontaglio
-        end
-    end
-    pause(pausa(1));
-    %FINISCO DI DEPOSITARE
-    writeline(t_robot,num2str(0));%se dico 1 va avanti a depositare in linea retta, altrimento no
-    data=CONTROL(t_robot);disp(data);
-    %ALZO IL ROBOT
-    pause(pausa(2));
-    if mod(n, 2) == 1
-         writeline(t_robot,num2str(0));%numero dispari ->non alzo
-    else
-        writeline(t_robot,num2str(1));%numero pari ->alzo
-    end
-    data=CONTROL(t_robot);disp(data);
-    %FEEDING AFTERCUT
-    if motors==1 || umotors==1
-        if mod(n, 2) == 1
-            writeline(t_umotor,strcat("G0\n"));%numero dispari ->non feed
-        else
-            writeline(t_umotor,strcat("G",num2str(ang_feed),"\n"));%numero pari ->feed
-        end
-    end
-    pause(pausa(3));
-    %TORNO A CASA SE HO FINITO TUTTO
-    if n==np
-        writeline(t_robot,num2str(1));
-    else
-        writeline(t_robot,num2str(0));
-    end
-    data=CONTROL(t_robot);disp(data);
+if umotors == 1
+    fprintf('\n=== MOTOR PREPARATION ===\n');
+    writeline(t_umotor, 'D');
+    fprintf('Motor DISABLED. Position needle manually.\n');
+    input('Press ENTER when ready...', 's');
+    pause(0.5);
+    writeline(t_umotor, 'E');
+    writeline(t_umotor, 'E');
+    fprintf('Motor ENABLED.\n');
+    pause(0.5);
+    writeline(t_umotor, 'S0');
+    pause(0.1);
+    flush(t_umotor);
+    fprintf('Ready.\n\n');
 end
 
+%% PROCESSO
+pausa=[3,1,3];%array delle pause di processo
+path="C:\Users\nbele\OneDrive\Escritorio\REALTIME_TASTIERA_FP\Mitsubishi-RT-main\Mitsubishi-RT-main\x64\Release";
+pathconf = path + "\configs";
+confname = "FP1.txt";
+pos_j=num2str(giunti);
+tastiera="N";
+sec_sottoprocessi="100";
+msec_attesa="1000";
 
+flush(t_robot);   
+try
+    %Teach modo giunti/xyz
+    writeline(t_robot,pos_j); data=CONTROL(t_robot);disp(data);
+    %Teach np
+    writeline(t_robot,num2str(np)); data=CONTROL(t_robot);disp(data);
+    for n=1:np
+        %Teach P_start and move
+        data=TEACH_P(t_robot,PPstr(n,1));disp(data);
+        data=CONTROL(t_robot);disp(data);               % PRONTO
+        %REALTIME_IN
+        writeline(t_robot,num2str(1));
+        data=CONTROL(t_robot);disp(data);
+        %Config file
+        fullpath = fullfile(pathconf, confname);
+        fid = fopen(fullpath, 'w');
+        if fid == -1
+            error('Impossibile aprire o creare il file: %s', fullpath);
+        end
+        txt=nomi_matrici+num2str(n)+".txt";
+        fprintf(fid, '# IP  filename        cycle_time timeout\n');
+        fprintf(fid,"%s",IP_robot(1)+' ./Traiettorie/FP/FPmat/'+txt+' 7100 7100');
+        fclose(fid);
+        %cmd en segundo plano para mover el motor mientras el robot corre
+        cmd = sprintf('cd /d "%s" && start /b ProvaMistu2.exe %s %s %s %s %s', ...
+            path,confname,pos_j,tastiera,sec_sottoprocessi,msec_attesa);
+
+        %SEWING
+        if umotors==1
+            flush(t_umotor);
+            writeline(t_umotor,'Z');                    % reset contador de pasos
+        end
+        system(cmd);                                    % arranca el realtime
+        if umotors==1
+            pause(t_delay);                             % espera arranque del robot
+            ramparMotor(t_umotor, MIN_SPS, sps_vec(n)); % acelera
+            if t_cruise(n) > 0, pause(t_cruise(n)); end % crucero
+            ramparMotor(t_umotor, sps_vec(n), MIN_SPS); % frena
+        end
+        %REALTIME_OUT
+        data=CONTROL(t_robot);disp(data);
+        if umotors==1
+            flush(t_umotor);                            % descarta ecos acumulados
+            writeline(t_umotor,'F');
+            t_fin = STEPS_REV/MIN_SPS + 1;              % timeout
+            t0 = tic; ok = false;
+            while toc(t0) < t_fin
+                if t_umotor.NumBytesAvailable > 0
+                    l = readline(t_umotor);
+                    if contains(l,"completada"), ok = true; break; end
+                else
+                    pause(0.02);
+                end
+            end
+            if ~ok, warning("F no confirmó el cierre de la puntada"); end
+        end
+        pause(pausa(1));
+        %FINISCO DI DEPOSITARE
+        writeline(t_robot,num2str(0));
+        data=CONTROL(t_robot);disp(data);
+        %ALZO IL ROBOT
+        pause(pausa(2));
+        writeline(t_robot,num2str(1));
+        data=CONTROL(t_robot);disp(data);
+        pause(pausa(3));
+        %HOME SE HO FINITO
+        if n==np
+            writeline(t_robot,num2str(1));
+        else
+            writeline(t_robot,num2str(0));
+        end
+        data=CONTROL(t_robot);disp(data);
+    end
+catch ME
+    if umotors==1
+        writeline(t_umotor,'S0'); writeline(t_umotor,'D');
+    end
+    system('taskkill /F /IM ProvaMistu2.exe >nul 2>&1');
+    disp("ERROR: resetea el programa MELFA antes de relanzar");
+    rethrow(ME);
+end
+
+%% FINISH
+if umotors==1
+    writeline(t_umotor,'S0'); pause(0.05);
+    writeline(t_umotor,'D');
+end
+disp("PROCESS FINISHED");
+
+%% LOCAL FUNCTION
+function ramparMotor(t_ard, v_start, v_end)
+    MAX_STEP = 300; DT = 0.05;
+    if v_start == v_end, return; end
+    dir = sign(v_end - v_start);
+    n = ceil(abs(v_end - v_start)/MAX_STEP);
+    for i = 1:n
+        v = max(0, v_start + dir*min(i*MAX_STEP, abs(v_end - v_start)));
+        writeline(t_ard, sprintf('S%.0f', v));
+        pause(DT);
+    end
+    writeline(t_ard, sprintf('S%.0f', v_end));
+end
