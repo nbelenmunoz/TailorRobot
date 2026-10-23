@@ -5,7 +5,7 @@ Accel 100,100
 Spd 50
 Cnt 1
 Tool 1
-Def Inte pj,M1,M2,M3,Mvel
+Def Inte pj,M1,M2,M3,M4,M5,M6,Mvel
 Def Float radius, ndeg, h, c2
 Dim PP(3)
 PHome=(+350.00,+0.00,+200.00,-90.00,+0.00,-90.00)(6,0)
@@ -14,10 +14,10 @@ Mvs PHome
 Open "COM7:" As #7
 If M_Open(7) <> 1 Then *rpt
 Dly 0.1
-For M3%=1 To 3 Step 1
+For M1%=1 To 3 Step 1
     Input #7,PP(1)
     Print #7,"P1_fatto"
-    Input #7,Mvel
+    Input #7,Mvel%
     Print #7,"Mvel"
     Input #7,PP(2)
     Print #7,"P2_fatto"
@@ -25,46 +25,68 @@ For M3%=1 To 3 Step 1
     Print #7,"deg_ok"
     Input #7,radius
     Print #7,"rad_ok"
-    Input #7,M1%
-    If M1%=1 Then
-        Ovrd 30
+    Input #7,M2%
+    If M2%=1 Then
+        Ovrd 50
         Mvs PP(1)
-        Ovrd 100
         c2=(PP(2).X-PP(1).X)/2
-        h = Sqr(radius*radius-c2*c2)
+        h = radius-Sqr(radius*radius-c2*c2)
         PP(3)=PP(1)
         PP(3).X=PP(1).X+ c2
         PP(3).Y=PP(1).Y
         PP(3).Z=PP(1).Z-h
-        Input #7,M2%
+        Input #7,M3%
         Print #7,"ARC"
-        Spd MVEL
+        Ovrd 100
+        Spd Mvel%
         Mvr3 PP(1),PP(2),PP(3)
         Print #7,"ARC_done"
-        Input #7,M2%
-        If M2%=1 Then
-            PP(2)=P_Fbc
-            Mvs PP(2)+(+0.00,+0.00,+50.00,+0.00,+0.00,+0.00)(0,0)
-            PP(2)=P_Fbc
+        Input #7,M4%
+        Ovrd 50
+        Spd 30
+        If M4%=1 Then
+            Mvs P_Fbc+(+0.00,+0.00,+50.00,+0.00,+0.00,+0.00)(0,0)
             Print #7,"UP"
         EndIf
-        Ovrd 50
-        If M2%=1 Then
-            Mvs PP(2)+(+20.00,+0.00,+0.00,+0.00,+0.00,+180.00)(0,0)
-        ElseIf M2%=2 Then
-            Mvs PP(2)+(+20.00,+0.00,+0.00,+0.00,+0.00,-180.00)(0,0)
+        Input #7,M5%
+        Ovrd 30
+        Spd 20
+        Dly 1
+        If M5%=1 Then
+            Mvs P_Fbc+(+0.00,+20.00,+0.00,+0.00,+0.00,+0.00)(0,0)
+            Dly 0.5
+            J1= J_Fbc+(+0.00,+0.00,+0.00,+0.00,+0.00,20.00)
+            Mvs J1
+            J1= J_Fbc+(+0.00,+0.00,+0.00,+0.00,+0.00,160.00)
+            Dly 0.5
+            Mvs J1
+            Dly 1
+        ElseIf M5%=2 Then
+            Mvs P_Fbc+(+0.00,+20.00,+0.00,+0.00,+0.00,+0.00)(0,0)
+            Dly 0.5
+            J1= J_Fbc+(+0.00,+0.00,+0.00,+0.00,+0.00,-20.00)
+            Mvs J1
+            J1= J_Fbc+(+0.00,+0.00,+0.00,+0.00,+0.00,-160.00)
+            Dly 0.5
+            Mvs J1
+            Dly 1
+        Else
+            Dly 1
         EndIf
-        Ovrd 100
         Print #7,"FINITO"
-        Input #7,M2%
-        Print #7,"CONTINUO"
+        Input #7,M6%
+        If M6%=0 Then
+            Print #7,"CONTINUO"
+        Else
+            Print #7,"HOME"
+            Dly 1
+            Ovrd 50
+            Spd 30
+            Mvs PHome
+        EndIf
     EndIf
-Next M3%
+Next M1%
 Dly 1
-Print #7,"HOME"
-Dly 1
-Spd 30
-Mvs PHome
 Close #7
 Dly 0.5
 Servo Off
