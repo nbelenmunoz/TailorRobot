@@ -108,7 +108,7 @@ for i = 1:n_t
 end
 
 %% Arduino Preparation
-% clc;
+clc;
 disp("VAI NEL PROGRAMMA MITSU E AVVIALO");
 if umotors == 1
     fprintf('\n=== MOTOR PREPARATION ===\n');
@@ -130,7 +130,7 @@ end
 %% PROCESSO
 n_t=3;
 flush(t_robot);
-l_r=1;
+
 % try
 for n = 1:n_t  % Send data to the robot
     disp(n);
@@ -149,7 +149,7 @@ for n = 1:n_t  % Send data to the robot
     writeline(t_robot, num2str(radius));
     data = CONTROL(t_robot); disp(data);   % rad_ok
     pause(0.5);
-    writeline(t_robot, "1"); %To prenenter the loop
+    writeline(t_robot, "1"); %M2
     % PREPARE THE MOTOR
     if umotors == 1
         flush(t_umotor);
@@ -160,7 +160,7 @@ for n = 1:n_t  % Send data to the robot
     end
     % ARCH
     pause(0.5);
-    writeline(t_robot, "1");
+    writeline(t_robot, "1");%M3
     data = CONTROL(t_robot); disp(data);   % ARCH
     t_sys = tic;
 
@@ -193,34 +193,29 @@ for n = 1:n_t  % Send data to the robot
     % pause(pausa(1));
     data = CONTROL(t_robot); disp(data);   %ARC_DONE
     pause(4);
-    writeline(t_robot,'1');
+    writeline(t_robot,'1'); %M4
     data = CONTROL(t_robot); disp(data);   % UP
     pause(0.5);
-    if n<n_t
-        if l_r==1
-            writeline(t_robot,'1');
-            l_r=2;
-        elseif l_r==2
-            writeline(t_robot,'2');
-            l_r=1;
-        end
-    else 
-        writeline(t_robot,'0');
+
+    %Rotation
+    l_r = 1 + mod(n-1, 2);
+    disp(l_r);
+    if n==n_t %M5
+        writeline(t_robot, num2str(0)); %0 the last trace
+    else
+        writeline(t_robot, num2str(l_r)); %1 or 2 the other cases
     end
+
     data = CONTROL(t_robot); disp(data);   % FINITO
     pause(0.5);
-    % if n == n_t
-    %     disp("GUGU");
-    %     writeline(t_robot, '1');
-    % else
-    %     disp("GAGA");
-    %     writeline(t_robot, '0');
-    % end
-    writeline(t_robot, '1');
-    data = CONTROL(t_robot); disp(data);   %CONTINUO
-    disp(n);
+    if n == n_t %M6
+        writeline(t_robot, '1');
+    else
+        writeline(t_robot, '0');
+    end
+    data = CONTROL(t_robot); disp(data);   %CONTINUO/HOME
 end
-data = CONTROL(t_robot); disp(data);   %HOME
+% data = CONTROL(t_robot); disp(data);   %HOME
 % catch ME
 % if umotors == 1
 %     writeline(t_umotor, 'S0');pause(0.05);writeline(t_umotor, 'D');
