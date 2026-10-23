@@ -8,7 +8,7 @@ robots = 1; motors = 0; umotors = 1;
 % IP
 IP_robot = ["192.168.0.22", 10008];
 IP_motor = [];
-IP_umotor = ["COM7", 9600];
+IP_umotor = ["COM6", 9600];
 % Flag robot
 robot_flag = "(6,0)";
 
@@ -57,9 +57,11 @@ segno=1;
 y_offset=10;%mm
 for i = 2:n_t
     P_start(i, :)=P_end(i-1, :);
-    P_start(i, 2)=P_end(i-1,2)+y_offset;P_start(i, 6)=P_start(i,6)+segno*180;
+    P_start(i, 2)=P_end(i-1,2)+y_offset;P_start(i, 6)=P_start(i,6)+segno*180; 
+    P_start(i,4)=A1;
     P_end(i,:)=P_start(i-1, :);
     P_end(i,2)=P_start(i,2);P_end(i, 6)=P_start(i,6);
+    P_end(i,4)=A2;
     segno=-segno;
 end
 
